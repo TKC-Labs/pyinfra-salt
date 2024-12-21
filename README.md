@@ -1,6 +1,10 @@
-# pyinfra code for TKC Labs
+# pyinfra: salt
 
-This repository contains code related to pyinfra deployments and management in TKC Labs
+This repository contains code for deploying salt services on targeted machines.
+
+The use-case is when one needs an adhoc or out-of-band utility to deploy a new salt-master or salt-minion.
+
+Recent stability issues with salt-ssh have caused me to seek a different more stable method to handle these deploys.
 
 ## Preparation
 
@@ -22,7 +26,7 @@ pip install pyinfa
 
 ## Usage
 
-### Adhoc commands
+### adhoc commands
 
 Commands run like `pyinfra INVENTORY OPERATIONS`
 
@@ -37,7 +41,7 @@ pyinfra @docker/ubuntu:18.04 exec -- echo "hello world"
 pyinfra @local exec -- echo "hello world"
 ```
 
-### Deploys
+### pyinfra deploys
 
 The examples directory holds a deployment that I use directly from the repo to deploy Salt for local testing.
 
@@ -54,3 +58,12 @@ It is also assumed that the user being used for SSH access will have passwordles
 # hosts defined in inventory.py
 pyinfra inventory.py deploy.py
 ````
+
+## Building
+
+No automated builds configured yet.
+
+```bash
+# Build a wheel if you want to install one
+python -m build
+```
