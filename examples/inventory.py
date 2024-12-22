@@ -41,18 +41,15 @@ def deep_merge(defaults, overrides):
     return defaults
 
 
-
 # Hosts to run the bootstrap-salt.sh script on
 deploy_targets = [
     (
-        "salt-ssh.local",
+        "salt01.dev.tkclabs.io",
         deep_merge(
             copy.deepcopy(DEFAULTS),
             {
-                "ssh_user": "crow",
                 "options": {"master_fqdn": "127.0.0.1", "install": {"master": True, "api": True}},
             },
         ),
     ),
-    ("target01.tkclabs.io", deep_merge(copy.deepcopy(DEFAULTS), {})),
 ]

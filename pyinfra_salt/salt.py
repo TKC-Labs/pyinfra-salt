@@ -44,7 +44,6 @@ def download_salt_bootstrap_script(bootstrap_url=_get_latest_boostrap_salt_url()
         group="root",
         mode="0700",
         force=False,
-        cache_time=31536000,
         sha256sum=sha256_response.text.strip(),
         _sudo=True,
     )
