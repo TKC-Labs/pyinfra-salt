@@ -40,6 +40,7 @@ def deploy_files(files_dir, destination_dir):
 
     # Prepare to remove files from destination_dir that do not exist
     # in files_dir
+    source_files = set(os.listdir(files_dir))
     destination_files = set(
         os.path.basename(file)
         for file in host.get_fact(FindFiles, path=destination_dir)
@@ -48,11 +49,14 @@ def deploy_files(files_dir, destination_dir):
     # Remove specific files from the destination_files set
     # These are files deployed by the bootstrap-salt.sh script that
     # we don't want to "manage" with pyinfra
-    destination_files.discard("99-master-address.conf")
-    destination_files.discard("_schedule.conf")
+    for bootstrap_file in [
+        "99-master-address.conf",
+        "_schedule.conf",
+    ]:
+        if bootstrap_file not in source_files:
+            destination_files.discard(bootstrap_file)
 
     # Build our list of files to remove
-    source_files = set(os.listdir(files_dir))
     files_to_remove = destination_files - source_files
 
     # Remove any files on the files_to_remove list from the
@@ -86,40 +90,55 @@ else:
 if not host.get_fact(Directory, path="/etc/salt"):
     bootstrap_salt()
 else:
-    logger.info(
-        "Directory /etc/salt already exists, skipping bootstrap-salt.sh script"
-    )
+    logger.info("Directory /etc/salt already exists, skipping bootstrap-salt.sh script")
+
+
+config_options = host.data.get("options", {})
+config_install_options = config_options.get("install", {})
 
 
 # Deploy configuration files from files/master.d
-logger.info("Deploying controller config from files/master.d")
-files_dir = "files/master.d"
-destination_dir = "/etc/salt/master.d"
-master_changes = deploy_files(files_dir, destination_dir)
+if config_install_options.get("master", None):
+    logger.info("Deploying controller config from files/master.d")
+    files_dir = "files/master.d"
+    destination_dir = "/etc/salt/master.d"
+    master_changes = deploy_files(files_dir, destination_dir)
 
-# Handle controller service restarts
-if any(change.changed for change in master_changes):
-    master_restart = systemd.service(
-        name="Restart salt-master service",
-        service="salt-master",
-        running=True,
-        restarted=True,
-        _sudo=True,
-    )
+    # Customize the /etc/salt/master configuration
+    if host.get_fact(File, path="/etc/salt/master"):
+        logger.info("Customizing /etc/salt/master configuration")
+        salt_master_user = files.line(
+            name="Ensure salt-master runs as root rather than salt",
+            path="/etc/salt/master",
+            line=r"user: salt",
+            replace="user: root",
+            _sudo=True,
+        )
+
+    # Handle controller service restarts
+    if any(change.changed for change in master_changes) or salt_master_user.changed:
+        master_restart = systemd.service(
+            name="Restart salt-master service",
+            service="salt-master",
+            running=True,
+            restarted=True,
+            _sudo=True,
+        )
 
 
 # Deploy configuration files from files/minion.d
-logger.info("Deploying controller config from files/minion.d")
-files_dir = "files/minion.d"
-destination_dir = "/etc/salt/minion.d"
-minion_changes = deploy_files(files_dir, destination_dir)
+if config_install_options.get("minion", False):
+    logger.info("Deploying minion config from files/minion.d")
+    files_dir = "files/minion.d"
+    destination_dir = "/etc/salt/minion.d"
+    minion_changes = deploy_files(files_dir, destination_dir)
 
-# Handle minion service restarts
-if any(change.changed for change in minion_changes):
-    minion_restart = systemd.service(
-        name="Restart salt-minion service",
-        service="salt-minion",
-        running=True,
-        restarted=True,
-        _sudo=True,
-    )
+    # Handle minion service restarts
+    if any(change.changed for change in minion_changes):
+        minion_restart = systemd.service(
+            name="Restart salt-minion service",
+            service="salt-minion",
+            running=True,
+            restarted=True,
+            _sudo=True,
+        )
